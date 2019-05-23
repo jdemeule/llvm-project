@@ -10,6 +10,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/Basic/Diagnostic.h"
 
 using namespace clang::ast_matchers;
 
@@ -19,14 +20,19 @@ namespace modernize {
 
 void UseRangesCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
-      callExpr(callee(functionDecl(hasName("::std::copy")))).bind("match"),
+      callExpr(callee(functionDecl(hasName("::std::copy"))),
+               has(implicitCastExpr(has(declRefExpr().bind("name")))))
+          .bind("match"),
       this);
 }
 
 void UseRangesCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *MatchExpr = Result.Nodes.getNodeAs<CallExpr>("match");
+  const auto *MatchDecl = Result.Nodes.getNodeAs<DeclRefExpr>("name");
   diag(MatchExpr->getExprLoc(),
-       "Consider to replace 'std::copy' by 'std::ranges::copy'");
+       "Consider to replace 'std::copy' by 'std::ranges::copy'")
+      << FixItHint::CreateReplacement(MatchDecl->getSourceRange(),
+                                      "std::ranges::copy");
 }
 
 } // namespace modernize
