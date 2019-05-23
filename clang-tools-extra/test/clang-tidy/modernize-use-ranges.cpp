@@ -64,6 +64,22 @@ void std_copy_2() {
   // CHECK-FIXES: std::ranges::copy(v2, std::back_inserter(out));
 }
 
+void std_copy_3() {
+  std::vector<int> *v3;
+  std::vector<int> out;
+  std::copy(v3->begin(), v3->end(), std::back_inserter(out));
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: Consider to replace 'std::copy' by 'std::ranges::copy' [modernize-use-ranges]
+  // CHECK-FIXES: std::ranges::copy(*v3, std::back_inserter(out));
+}
+
+void std_copy_4() {
+  std::vector<int> *v4;
+  std::vector<int> out;
+  std::copy(std::begin(*v4), std::end(*v4), std::back_inserter(out));
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: Consider to replace 'std::copy' by 'std::ranges::copy' [modernize-use-ranges]
+  // CHECK-FIXES: std::ranges::copy(*v4, std::back_inserter(out));
+}
+
 void range_1() {
   std::vector<int> vs;
   std::vector<int> out;
