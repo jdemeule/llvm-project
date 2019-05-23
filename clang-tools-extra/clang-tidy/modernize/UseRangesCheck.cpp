@@ -69,8 +69,13 @@ void UseRangesCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *EndCallExpr = Result.Nodes.getNodeAs<CallExpr>("end");
   const auto *ContainerExpr = findContainerExpr(Result);
   if (ContainerExpr) {
-    Diag << FixItHint::CreateRemoval(CharSourceRange::getTokenRange(
-        BeginCallExpr->getBeginLoc(), EndCallExpr->getEndLoc()));
+    auto ContainerText = Lexer::getSourceText(
+        CharSourceRange::getTokenRange(ContainerExpr->getSourceRange()),
+        *Result.SourceManager, Result.Context->getLangOpts());
+    Diag << FixItHint::CreateReplacement(
+        CharSourceRange::getTokenRange(BeginCallExpr->getBeginLoc(),
+                                       EndCallExpr->getEndLoc()),
+        ContainerText);
   }
 }
 
