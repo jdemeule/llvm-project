@@ -8,6 +8,7 @@
 
 #include "UseRangesCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Expr.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 using namespace clang::ast_matchers;
@@ -17,19 +18,15 @@ namespace tidy {
 namespace modernize {
 
 void UseRangesCheck::registerMatchers(MatchFinder *Finder) {
-  // FIXME: Add matchers.
-  Finder->addMatcher(functionDecl().bind("x"), this);
+  Finder->addMatcher(
+      callExpr(callee(functionDecl(hasName("::std::copy")))).bind("match"),
+      this);
 }
 
 void UseRangesCheck::check(const MatchFinder::MatchResult &Result) {
-  // FIXME: Add callback implementation.
-  const auto *MatchedDecl = Result.Nodes.getNodeAs<FunctionDecl>("x");
-  if (MatchedDecl->getName().startswith("awesome_"))
-    return;
-  diag(MatchedDecl->getLocation(), "function %0 is insufficiently awesome")
-      << MatchedDecl;
-  diag(MatchedDecl->getLocation(), "insert 'awesome'", DiagnosticIDs::Note)
-      << FixItHint::CreateInsertion(MatchedDecl->getLocation(), "awesome_");
+  const auto *MatchExpr = Result.Nodes.getNodeAs<CallExpr>("match");
+  diag(MatchExpr->getExprLoc(),
+       "Consider to replace 'std::copy' by 'std::ranges::copy'");
 }
 
 } // namespace modernize
