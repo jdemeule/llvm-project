@@ -53,7 +53,7 @@ void std_copy_1() {
   std::vector<int> out;
   std::copy(v1.begin(), v1.end(), std::back_inserter(out));
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: Consider to replace 'std::copy' by 'std::ranges::copy' [modernize-use-ranges]
-  // CHECK-FIXES: std::ranges::copy(v1.begin(), v1.end(), std::back_inserter(out));
+  // CHECK-FIXES: std::ranges::copy(v1, std::back_inserter(out));
 }
 
 void std_copy_2() {
@@ -61,7 +61,7 @@ void std_copy_2() {
   std::vector<int> out;
   std::copy(std::begin(v2), std::end(v2), std::back_inserter(out));
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: Consider to replace 'std::copy' by 'std::ranges::copy' [modernize-use-ranges]
-  // CHECK-FIXES: std::ranges::copy(std::begin(v2), std::end(v2), std::back_inserter(out));
+  // CHECK-FIXES: std::ranges::copy(v2, std::back_inserter(out));
 }
 
 void range_1() {
