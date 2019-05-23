@@ -16,6 +16,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
+#include <sstream>
 
 using namespace clang::ast_matchers;
 
@@ -35,24 +36,31 @@ void UseRangesCheck::registerMatchers(MatchFinder *Finder) {
       this);
 }
 
-static const Expr *
+struct ContainerAccessInfo {
+  const Expr *ContainerExpr;
+  bool NeedDereference;
+};
+
+static ContainerAccessInfo
 findContainerExprFromBeginEndCallExpr(const CallExpr *BeginEndExpr) {
   const auto *BeginCalleeExpr = BeginEndExpr->getCallee();
   if (const auto *Member = dyn_cast<MemberExpr>(BeginCalleeExpr)) {
-    return Member->getBase();
+    return {Member->getBase(), Member->isArrow()};
   } else {
-    return BeginEndExpr->getArg(0);
+    return {BeginEndExpr->getArg(0), false};
   }
 }
 
-static const Expr *findContainerExpr(const MatchFinder::MatchResult &Result) {
+static ContainerAccessInfo
+findContainerExpr(const MatchFinder::MatchResult &Result) {
   const auto *BeginCallExpr = Result.Nodes.getNodeAs<CallExpr>("begin");
   const auto *EndCallExpr = Result.Nodes.getNodeAs<CallExpr>("end");
-  const auto *BeginCtnExpr =
+  const auto BeginCtnExpr =
       findContainerExprFromBeginEndCallExpr(BeginCallExpr);
-  const auto *EndCtnExpr = findContainerExprFromBeginEndCallExpr(EndCallExpr);
-  if (!areSameExpr(Result.Context, BeginCtnExpr, EndCtnExpr))
-    return nullptr;
+  const auto EndCtnExpr = findContainerExprFromBeginEndCallExpr(EndCallExpr);
+  if (!areSameExpr(Result.Context, BeginCtnExpr.ContainerExpr,
+                   EndCtnExpr.ContainerExpr))
+    return {nullptr, false};
   return BeginCtnExpr;
 }
 
@@ -67,15 +75,20 @@ void UseRangesCheck::check(const MatchFinder::MatchResult &Result) {
 
   const auto *BeginCallExpr = Result.Nodes.getNodeAs<CallExpr>("begin");
   const auto *EndCallExpr = Result.Nodes.getNodeAs<CallExpr>("end");
-  const auto *ContainerExpr = findContainerExpr(Result);
-  if (ContainerExpr) {
-    auto ContainerText = Lexer::getSourceText(
-        CharSourceRange::getTokenRange(ContainerExpr->getSourceRange()),
-        *Result.SourceManager, Result.Context->getLangOpts());
+  const auto ContainerAccess = findContainerExpr(Result);
+  if (ContainerAccess.ContainerExpr) {
+    std::stringstream Replacement;
+    if (ContainerAccess.NeedDereference)
+      Replacement << "*";
+    Replacement << Lexer::getSourceText(
+                       CharSourceRange::getTokenRange(
+                           ContainerAccess.ContainerExpr->getSourceRange()),
+                       *Result.SourceManager, Result.Context->getLangOpts())
+                       .str();
     Diag << FixItHint::CreateReplacement(
         CharSourceRange::getTokenRange(BeginCallExpr->getBeginLoc(),
                                        EndCallExpr->getEndLoc()),
-        ContainerText);
+        Replacement.str());
   }
 }
 
