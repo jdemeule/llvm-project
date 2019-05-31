@@ -17,6 +17,7 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
 #include <sstream>
+#include <vector>
 
 using namespace clang::ast_matchers;
 
@@ -25,15 +26,19 @@ namespace tidy {
 namespace modernize {
 
 void UseRangesCheck::registerMatchers(MatchFinder *Finder) {
+  std::vector<std::string> Algos = {"copy", "transform"};
+
   auto BeginExpr = callExpr(callee(functionDecl(hasName("begin"))));
   auto EndExpr = callExpr(callee(functionDecl(hasName("end"))));
-  Finder->addMatcher(
-      callExpr(callee(functionDecl(hasName("::std::copy"))),
-               has(implicitCastExpr(has(declRefExpr().bind("name")))),
-               hasArgument(0, BeginExpr.bind("begin")),
-               hasArgument(1, EndExpr.bind("end")))
-          .bind("match"),
-      this);
+  for (const auto &Name : Algos) {
+    Finder->addMatcher(
+        callExpr(callee(functionDecl(hasName("::std::" + Name))),
+                 has(implicitCastExpr(has(declRefExpr().bind("name")))),
+                 hasArgument(0, BeginExpr.bind("begin")),
+                 hasArgument(1, EndExpr.bind("end")))
+            .bind("match"),
+        this);
+  }
 }
 
 struct ContainerAccessInfo {
@@ -68,10 +73,14 @@ void UseRangesCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *MatchExpr = Result.Nodes.getNodeAs<CallExpr>("match");
   const auto *MatchDecl = Result.Nodes.getNodeAs<DeclRefExpr>("name");
 
-  auto Diag = diag(MatchExpr->getExprLoc(),
-                   "Consider to replace 'std::copy' by 'std::ranges::copy'")
-              << FixItHint::CreateReplacement(MatchDecl->getSourceRange(),
-                                              "std::ranges::copy");
+  std::string AlgoReplacement =
+      "std::ranges::" + MatchDecl->getNameInfo().getAsString();
+
+  auto Diag =
+      diag(MatchExpr->getExprLoc(), "Consider to replace 'std::%0' by '%1'")
+      << MatchDecl->getNameInfo().getAsString() << AlgoReplacement
+      << FixItHint::CreateReplacement(MatchDecl->getSourceRange(),
+                                      AlgoReplacement);
 
   const auto *BeginCallExpr = Result.Nodes.getNodeAs<CallExpr>("begin");
   const auto *EndCallExpr = Result.Nodes.getNodeAs<CallExpr>("end");
