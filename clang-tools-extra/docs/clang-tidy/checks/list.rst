@@ -200,6 +200,7 @@ Clang-Tidy Checks
    misc-unused-alias-decls
    misc-unused-parameters
    misc-unused-using-decls
+   misc-unused-variable
    modernize-avoid-bind
    modernize-avoid-c-arrays
    modernize-concat-nested-namespaces

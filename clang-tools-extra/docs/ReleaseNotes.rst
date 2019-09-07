@@ -152,6 +152,11 @@ Improvements to clang-tidy
   Checks for calls to ``+new`` or overrides of it, which are prohibited by the
   Google Objective-C style guide.
 
+- New :doc:`misc-unused-variable
+  <clang-tidy/checks/misc-unused-variable>` check.
+
+  Checks for unused variables.
+
 - New :doc:`objc-super-self <clang-tidy/checks/objc-super-self>` check.
 
   Finds invocations of ``-self`` on super instances in initializers of
