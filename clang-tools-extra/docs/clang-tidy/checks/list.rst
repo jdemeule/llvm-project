@@ -198,6 +198,7 @@ Clang-Tidy Checks
    misc-unconventional-assign-operator
    misc-uniqueptr-reset-release
    misc-unused-alias-decls
+   misc-unused-function
    misc-unused-parameters
    misc-unused-using-decls
    misc-unused-variable

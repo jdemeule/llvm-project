@@ -13,6 +13,7 @@ add_clang_library(clangTidyMiscModule
   UnconventionalAssignOperatorCheck.cpp
   UniqueptrResetReleaseCheck.cpp
   UnusedAliasDeclsCheck.cpp
+  UnusedFunctionCheck.cpp
   UnusedParametersCheck.cpp
   UnusedUsingDeclsCheck.cpp
   UnusedVariableCheck.cpp

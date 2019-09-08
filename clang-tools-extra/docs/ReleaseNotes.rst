@@ -152,6 +152,11 @@ Improvements to clang-tidy
   Checks for calls to ``+new`` or overrides of it, which are prohibited by the
   Google Objective-C style guide.
 
+- New :doc:`misc-unused-function
+  <clang-tidy/checks/misc-unused-function>` check.
+
+  Checks for unused functions.
+
 - New :doc:`misc-unused-variable
   <clang-tidy/checks/misc-unused-variable>` check.
 
