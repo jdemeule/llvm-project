@@ -9,6 +9,9 @@
 #include "NoexceptMoveConstructorCheck.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/DiagnosticIDs.h"
+#include "clang/Basic/SourceLocation.h"
 
 using namespace clang::ast_matchers;
 
@@ -49,7 +52,13 @@ void NoexceptMoveConstructorCheck::check(
     if (!isNoexceptExceptionSpec(ProtoType->getExceptionSpecType())) {
       diag(Decl->getLocation(), "move %0s should be marked noexcept")
           << MethodType;
-      // FIXME: Add a fixit.
+      SourceLocation InsertPosition =
+          Decl->hasBody() ? Decl->getBody()->getBeginLoc()
+                          : Decl->getEndLoc().getLocWithOffset(1);
+      diag(Decl->getLocation(), "add noexcept specifier on %0",
+           DiagnosticIDs::Note)
+          << MethodType
+          << FixItHint::CreateInsertion(InsertPosition, "noexcept");
       return;
     }
 

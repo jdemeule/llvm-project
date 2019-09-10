@@ -3,14 +3,25 @@
 class A {
   A(A &&);
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: move constructors should be marked noexcept [performance-noexcept-move-constructor]
+  // CHECK-FIXES: A(A &&)noexcept;
   A &operator=(A &&);
   // CHECK-MESSAGES: :[[@LINE-1]]:6: warning: move assignment operators should
+  // CHECK-FIXES: A &operator=(A &&)noexcept;
 };
 
 struct B {
   static constexpr bool kFalse = false;
   B(B &&) noexcept(kFalse);
   // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: noexcept specifier on the move constructor evaluates to 'false' [performance-noexcept-move-constructor]
+};
+
+class C {
+  C(C &&) {}
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: move constructors should be marked noexcept [performance-noexcept-move-constructor]
+  // CHECK-FIXES: C(C &&) noexcept{}
+  C &operator=(C &&) { return *this; }
+  // CHECK-MESSAGES: :[[@LINE-1]]:6: warning: move assignment operators should
+  // CHECK-FIXES: C &operator=(C &&) noexcept{ return *this; }
 };
 
 class OK {};
