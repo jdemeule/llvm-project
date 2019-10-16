@@ -20,8 +20,10 @@
 #include "clang/Format/Format.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Program.h"
 
 using namespace llvm;
 using namespace clang;
@@ -32,9 +34,10 @@ static cl::opt<std::string> Directory(cl::Positional, cl::Required,
 
 static cl::OptionCategory ReplacementCategory("Replacement Options");
 static cl::OptionCategory FormattingCategory("Formatting Options");
+static cl::OptionCategory BehaviorCategory("Behavior Options");
 
-const cl::OptionCategory *VisibleCategories[] = {&ReplacementCategory,
-                                                 &FormattingCategory};
+const cl::OptionCategory *VisibleCategories[] = {
+    &ReplacementCategory, &FormattingCategory, &BehaviorCategory};
 
 static cl::opt<bool> RemoveTUReplacementFiles(
     "remove-change-desc-files",
@@ -64,6 +67,18 @@ static cl::opt<std::string>
     FormatStyleOpt("style", cl::desc(format::StyleOptionHelpDescription),
                    cl::init("LLVM"), cl::cat(FormattingCategory));
 
+static cl::opt<std::string> BeforeApplyCmd(
+    "before-apply-command",
+    cl::desc("Command line to execute before applying any changes on it.\n"
+             "Will take the filepath as parameter."),
+    cl::init(""), cl::cat(BehaviorCategory));
+
+static cl::opt<std::string> AfterApplyCmd(
+    "after-apply-command",
+    cl::desc("Command line to execute after applying any changes on it.\n"
+             "Will take the filepath as parameter."),
+    cl::init(""), cl::cat(BehaviorCategory));
+
 namespace {
 // Helper object to remove the TUReplacement and TUDiagnostic (triggered by
 // "remove-change-desc-files" command line option) when exiting current scope.
@@ -83,6 +98,18 @@ private:
 
 static void printVersion(raw_ostream &OS) {
   OS << "clang-apply-replacements version " CLANG_VERSION_STRING << "\n";
+}
+
+static bool runBeforeApplyCmdOnFile(StringRef FileName) {
+  if (BeforeApplyCmd.empty())
+    return true;
+  return sys::ExecuteAndWait(BeforeApplyCmd, makeArrayRef(FileName)) == 0;
+}
+
+static bool runAfterApplyCmdOnFile(StringRef FileName) {
+  if (BeforeApplyCmd.empty())
+    return true;
+  return sys::ExecuteAndWait(AfterApplyCmd, makeArrayRef(FileName)) == 0;
 }
 
 int main(int argc, char **argv) {
@@ -143,6 +170,12 @@ int main(int argc, char **argv) {
   for (const auto &FileChange : Changes) {
     const FileEntry *Entry = FileChange.first;
     StringRef FileName = Entry->getName();
+
+    if (!runBeforeApplyCmdOnFile(FileName)) {
+      errs() << "'" << BeforeApplyCmd << "' failed on '" << FileName << "'\n";
+      continue;
+    }
+
     llvm::Expected<std::string> NewFileData =
         applyChanges(FileName, FileChange.second, Spec, Diagnostics);
     if (!NewFileData) {
@@ -150,14 +183,21 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    // Write new file to disk
-    std::error_code EC;
-    llvm::raw_fd_ostream FileStream(FileName, EC, llvm::sys::fs::F_None);
-    if (EC) {
-      llvm::errs() << "Could not open " << FileName << " for writing\n";
+    {
+      // Write new file to disk
+      std::error_code EC;
+      llvm::raw_fd_ostream FileStream(FileName, EC, llvm::sys::fs::F_None);
+      if (EC) {
+        llvm::errs() << "Could not open " << FileName << " for writing\n";
+        continue;
+      }
+      FileStream << *NewFileData;
+    }
+
+    if (!runAfterApplyCmdOnFile(FileName)) {
+      errs() << "'" << AfterApplyCmd << "' failed on '" << FileName << "'\n";
       continue;
     }
-    FileStream << *NewFileData;
   }
 
   return 0;
